@@ -1,13 +1,16 @@
 import streamlit as st
+import io
 
 # --- 1. SABİT VERİLER VE PROTOKOL TANIMLARI ---
-# (Bu bölüm önceki versiyonla aynı kalmıştır)
+
+# İlaç Konsantrasyonları (Varsayılan değerler)
 ILAC_KONSLARI = {
     "Butorphanol": 10.0, "Tramadol": 50.0, "Morfin": 15.0, "Hydromorphone": 2.0, "Buprenorfin": 0.3,
     "Acepromazine": 10.0, "Medetomidine": 1.0, "Dexmedetomidine": 0.5, "Diazepam": 5.0, "Midazolam": 5.0,
     "Propofol": 10.0, "Alfaxalone": 10.0, "Ketamin": 100.0,
 }
 
+# ASA Risk, Türe ve Uygulama Yoluna Göre Örnek Dozajlar (mg/kg)
 PROTOKOL_DOZLAR = {
     'kopek': {
         'Butorphanol': {'IM': {'standart': 0.3, 'düşük': 0.15}, 'IV': {'standart': 0.2, 'düşük': 0.1}, 'SC': {'standart': 0.4, 'düşük': 0.2}, 'IN': {'standart': 0.4, 'düşük': 0.2}},
@@ -52,21 +55,21 @@ if 'vucut_agirligi' not in st.session_state: st.session_state['vucut_agirligi'] 
 if 'tur_secimi' not in st.session_state: st.session_state['tur_secimi'] = 'kopek'
 if 'asa_sinifi' not in st.session_state: st.session_state['asa_sinifi'] = 'ASA I (Sağlıklı)'
 if 'secili_ilaclar' not in st.session_state: st.session_state['secili_ilaclar'] = {}
-# Chatbot için yeni oturum durumu
 if 'messages' not in st.session_state:
     st.session_state['messages'] = [{'role': 'assistant', 'content': "Merhaba! Tuvecca Anestezi Asistanıyım. Uygulama nasıl kullanılır, dozlar nasıl hesaplanır, ASA nedir gibi sorularınızı yanıtlayabilirim."}]
+# Kan Tablosu için yeni oturum durumu
+if 'uploaded_kan_tablosu' not in st.session_state: st.session_state['uploaded_kan_tablosu'] = None
 
 def go_to_page(page_num):
     st.session_state['page'] = page_num
 
 # --- 4. CHATBOT MANTIĞI ---
 def generate_ai_response(prompt):
-    """Basit kural tabanlı veya bağlam temelli yapay zeka yanıtı üretir."""
     prompt_lower = prompt.lower()
     
     # Uygulama Kullanımı
     if "kullanım" in prompt_lower or "nasıl kullanılır" in prompt_lower:
-        return "Uygulama 3 aşamadan oluşur: 1. Hasta bilgisi (ağırlık/tür/ASA) girilir. 2. Kullanmak istediğiniz ilaçlar ve uygulama yolları seçilir. 3. Nihai dozaj sonuçları otomatik hesaplanır."
+        return "Uygulama 3 aşamadan oluşur: 1. Hasta bilgisi (ağırlık/tür/ASA) girilir ve isterseniz kan tablosunu yüklersiniz. 2. Kullanmak istediğiniz ilaçlar ve uygulama yolları seçilir. 3. Nihai dozaj sonuçları otomatik hesaplanır."
     
     # Hesaplama Mantığı
     elif "doz" in prompt_lower and ("hesap" in prompt_lower or "nasıl" in prompt_lower):
@@ -98,33 +101,27 @@ def generate_ai_response(prompt):
         return "Bu konu hakkında uygulama içinde bilgi veremiyorum. Lütfen uygulama kullanımı, doz hesaplama veya ASA risk sınıfları ile ilgili bir soru sorun."
 
 def render_chatbot():
-    """Kenar çubuğuna (sidebar) yapay zeka sohbet asistanını ekler."""
-    
     with st.sidebar:
         st.subheader("💬 Tuvecca Anestezi Asistanı")
         
-        # Sohbet geçmişini görüntüle
         for message in st.session_state['messages']:
             with st.chat_message(message['role']):
                 st.write(message['content'])
 
-        # Kullanıcıdan girdi al
         prompt = st.chat_input("Sorunuzu buraya yazın...")
         
         if prompt:
-            # Kullanıcı mesajını geçmişe ekle
             st.session_state['messages'].append({'role': 'user', 'content': prompt})
             with st.chat_message('user'):
                 st.write(prompt)
             
-            # Yapay zeka yanıtını oluştur ve geçmişe ekle
             with st.chat_message('assistant'):
                 with st.spinner("Asistan yanıt üretiyor..."):
                     ai_response = generate_ai_response(prompt)
                     st.write(ai_response)
                     st.session_state['messages'].append({'role': 'assistant', 'content': ai_response})
 
-# --- 5. ARAYÜZ FONKSİYONLARI (CHATBOT ENTEGRELİ) ---
+# --- 5. ARAYÜZ FONKSİYONLARI ---
 
 def render_header():
     LOGO_URL = "https://images.squarespace-cdn.com/content/v1/64b4f89629c6c70b36f31cbb/ec7840bb-fd29-4b5d-8d82-a2c4bfd26a68/logo.png"
@@ -168,18 +165,49 @@ def page_1_input_patient_info():
         st.info("Risk sınıfına göre tüm ilaç dozları otomatik olarak düşük veya standart protokolden seçilecektir.")
         
     st.markdown("---")
+    
+    # YENİ EKLEME: DOSYA YÜKLEYİCİ
+    with st.expander("🔬 Derin Öğrenme Analizi İçin Kan Tablosu Yükle"):
+        uploaded_file = st.file_uploader(
+            "Kan tablosu dosyanızı yükleyin (Görüntü, PDF veya CSV)", 
+            type=["png", "jpg", "jpeg", "pdf", "csv"]
+        )
+        
+        if uploaded_file is not None:
+            st.session_state['uploaded_kan_tablosu'] = uploaded_file
+            st.success(f"'{uploaded_file.name}' dosyası yüklendi. Verilerin okunması ve analiz edilmesi için Derin Öğrenme modeli gereklidir.")
+            
+            # --- Örnek Veri Okuma (Sadece CSV için Kolay Okuma Örneği) ---
+            if uploaded_file.name.endswith('.csv'):
+                # Bu kısım, derin öğrenme modeliniz tarafından okunacak formattır.
+                # Kan değerlerini okuyup bir Pandas DataFrame olarak kaydedebiliriz.
+                # import pandas as pd
+                # df = pd.read_csv(uploaded_file)
+                st.caption("Eğer CSV ise, kod ileride Pandas ile kolayca okunabilir.")
+            else:
+                st.caption("Görüntü/PDF formatları için OCR (Görüntü Tanıma) entegrasyonu gereklidir.")
+        else:
+            st.session_state['uploaded_kan_tablosu'] = None
+            st.caption("Yüklenen dosya, modelinizin anestezi risk tahminlerini desteklemek için kullanılacaktır.")
+    
+    st.markdown("---")
+    
     if st.button("2. AŞAMAYA GEÇ: İlaç Seçimi ve Uygulama Yolu", type="primary", key="btn_next_p1"):
         go_to_page(2)
 
 def page_2_select_anesthetics():
     st.markdown("## 🛒 Aşama 2: Elinizdeki İlaçları, Konsantrasyonlarını ve Uygulama Yollarını Seçin")
     st.info(f"Hasta: **{st.session_state['vucut_agirligi']} kg {st.session_state['tur_secimi'].upper()}** | Risk: **{st.session_state['asa_sinifi']}**")
+    
+    # Kan Tablosu Yüklendiyse Ek Bilgi Gösterimi
+    if st.session_state['uploaded_kan_tablosu']:
+        st.warning("Kan tablosu yüklendi. Derin öğrenme entegrasyonu tamamlandığında, buraya kan tablosu analizi sonuçları ve protokol tavsiyeleri eklenecektir.")
+
     st.markdown("---")
 
     col_ilac_1, col_ilac_2, col_ilac_3 = st.columns(3)
     secili_ilaclar_temp = {}
     
-    # Tüm İlaç Listeleri ve Yollar
     opioid_listesi = ['Yok', 'Butorphanol', 'Tramadol', 'Morfin', 'Hydromorphone', 'Buprenorfin']
     sedatif_listesi = ['Yok', 'Midazolam', 'Diazepam', 'Medetomidine', 'Dexmedetomidine', 'Acepromazine']
     induksiyon_listesi = ['Propofol', 'Alfaxalone', 'Ketamin (Manuel Doz)']
@@ -259,6 +287,12 @@ def page_3_show_results():
     asa_sinifi = st.session_state['asa_sinifi']
     secili_ilaclar = st.session_state['secili_ilaclar']
     
+    # Kan tablosu analizi bölümü (Model sonuçları buraya gelecek)
+    if st.session_state['uploaded_kan_tablosu']:
+        st.subheader("🚨 Kan Tablosu Derin Öğrenme Analizi")
+        st.warning("Model entegrasyonu henüz tamamlanmadı. Analiz sonucu burada gösterilecektir. Yüklenen dosya: " + st.session_state['uploaded_kan_tablosu'].name)
+        st.markdown("---")
+
     doz_ayari = 'standart'
     if 'III' in asa_sinifi or 'IV' in asa_sinifi:
         doz_ayari = 'düşük'
@@ -336,7 +370,7 @@ def page_3_show_results():
 # --- 6. ANA UYGULAMA MANTIĞI ---
 
 render_header()
-render_chatbot() # Yeni: Kenar çubuğunda chatbot'u çalıştır
+render_chatbot()
 
 if st.session_state['page'] == 1:
     page_1_input_patient_info()
