@@ -2,42 +2,28 @@ import streamlit as st
 
 # --- 1. SABİT VERİLER VE PROTOKOL TANIMLARI ---
 
-# İlaç Konsantrasyonları (Varsayılan değerler) - Değişmedi
+# İlaç Konsantrasyonları (Varsayılan değerler)
 ILAC_KONSLARI = {
-    # Opioidler
-    "Butorphanol": 10.0,    
-    "Tramadol": 50.0,      
-    "Morfin": 15.0,        
-    "Hydromorphone": 2.0,  
-    "Buprenorfin": 0.3,    
-    # Sedatifler
-    "Acepromazine": 10.0,  
-    "Medetomidine": 1.0,   
-    "Dexmedetomidine": 0.5, 
-    "Diazepam": 5.0,       
-    "Midazolam": 5.0,      
-    # İndüksiyon (Çoğu IV kabul edilir, IM/SC için dozajlar daha yüksektir)
-    "Propofol": 10.0,
-    "Alfaxalone": 10.0,
-    "Ketamin": 100.0,      
+    "Butorphanol": 10.0, "Tramadol": 50.0, "Morfin": 15.0, "Hydromorphone": 2.0, "Buprenorfin": 0.3,
+    "Acepromazine": 10.0, "Medetomidine": 1.0, "Dexmedetomidine": 0.5, "Diazepam": 5.0, "Midazolam": 5.0,
+    "Propofol": 10.0, "Alfaxalone": 10.0, "Ketamin": 100.0,
 }
 
 # ASA Risk, Türe ve Uygulama Yoluna Göre Örnek Dozajlar (mg/kg)
-# Yapı: [Tur] -> [İlaç] -> [Uygulama Yolu] -> [ASA Risk]
 PROTOKOL_DOZLAR = {
     'kopek': {
-        'Butorphanol': {'IM': {'standart': 0.3, 'düşük': 0.15}, 'IV': {'standart': 0.2, 'düşük': 0.1}},
+        'Butorphanol': {'IM': {'standart': 0.3, 'düşük': 0.15}, 'IV': {'standart': 0.2, 'düşük': 0.1}, 'SC': {'standart': 0.4, 'düşük': 0.2}, 'IN': {'standart': 0.4, 'düşük': 0.2}},
         'Morfin': {'IM': {'standart': 0.8, 'düşük': 0.4}, 'IV': {'standart': 0.5, 'düşük': 0.2}},
         'Hydromorphone': {'IM': {'standart': 0.15, 'düşük': 0.08}, 'IV': {'standart': 0.1, 'düşük': 0.05}},
         'Acepromazine': {'IM': {'standart': 0.05, 'düşük': 0.025}, 'IV': {'standart': 0.03, 'düşük': 0.015}},
         'Medetomidine': {'IM': {'standart': 0.015, 'düşük': 0.008}, 'IV': {'standart': 0.01, 'düşük': 0.005}},
         'Dexmedetomidine': {'IM': {'standart': 0.005, 'düşük': 0.0025}, 'IV': {'standart': 0.003, 'düşük': 0.0015}},
         'Midazolam': {'IM': {'standart': 0.3, 'düşük': 0.15}, 'IV': {'standart': 0.2, 'düşük': 0.1}},
-        'Propofol': {'IV': {'standart': 5.0, 'düşük': 2.5}}, # İndüksiyon için IV tercih edilir
+        'Propofol': {'IV': {'standart': 5.0, 'düşük': 2.5}}, 
         'Alfaxalone': {'IV': {'standart': 3.0, 'düşük': 1.5}},
     },
     'kedi': {
-        'Butorphanol': {'IM': {'standart': 0.4, 'düşük': 0.2}, 'IV': {'standart': 0.3, 'düşük': 0.15}},
+        'Butorphanol': {'IM': {'standart': 0.4, 'düşük': 0.2}, 'IV': {'standart': 0.3, 'düşük': 0.15}, 'SC': {'standart': 0.5, 'düşük': 0.25}, 'IN': {'standart': 0.5, 'düşük': 0.25}},
         'Morfin': {'IM': {'standart': 0.3, 'düşük': 0.15}, 'IV': {'standart': 0.1, 'düşük': 0.05}},
         'Hydromorphone': {'IM': {'standart': 0.1, 'düşük': 0.05}, 'IV': {'standart': 0.05, 'düşük': 0.03}},
         'Acepromazine': {'IM': {'standart': 0.02, 'düşük': 0.01}, 'IV': {'standart': 0.01, 'düşük': 0.005}},
@@ -60,16 +46,11 @@ def doz_hesapla(konsantrasyon_mg_ml, dozaj_mg_kg, va_kg):
     return toplam_mg, hacim_ml
 
 # --- 3. OTURUM DURUMU (SESSION STATE) YÖNETİMİ ---
-if 'page' not in st.session_state:
-    st.session_state['page'] = 1
-if 'vucut_agirligi' not in st.session_state:
-    st.session_state['vucut_agirligi'] = 10.0
-if 'tur_secimi' not in st.session_state:
-    st.session_state['tur_secimi'] = 'kopek'
-if 'asa_sinifi' not in st.session_state:
-    st.session_state['asa_sinifi'] = 'ASA I (Sağlıklı)'
-if 'secili_ilaclar' not in st.session_state:
-    st.session_state['secili_ilaclar'] = {}
+if 'page' not in st.session_state: st.session_state['page'] = 1
+if 'vucut_agirligi' not in st.session_state: st.session_state['vucut_agirligi'] = 10.0
+if 'tur_secimi' not in st.session_state: st.session_state['tur_secimi'] = 'kopek'
+if 'asa_sinifi' not in st.session_state: st.session_state['asa_sinifi'] = 'ASA I (Sağlıklı)'
+if 'secili_ilaclar' not in st.session_state: st.session_state['secili_ilaclar'] = {}
 
 def go_to_page(page_num):
     st.session_state['page'] = page_num
@@ -77,35 +58,15 @@ def go_to_page(page_num):
 # --- 4. ARAYÜZ FONKSİYONLARI ---
 
 def render_header():
-    # Güncellenmiş Logo URL'si
     LOGO_URL = "https://images.squarespace-cdn.com/content/v1/64b4f89629c6c70b36f31cbb/ec7840bb-fd29-4b5d-8d82-a2c4bfd26a68/logo.png"
-    
     st.set_page_config(page_title="Tuvecca | Anestezi Hesaplayıcı", layout="wide")
     
-    # HTML ve CSS ile Logoyu Başlığın Üstüne Yerleştirme ve Metinleri Düzeltme
     st.markdown(f"""
         <style>
-        .header-container {{
-            display: flex;
-            align-items: center;
-            padding-bottom: 20px;
-        }}
-        .logo-img {{
-            width: 80px; 
-            height: 80px;
-            margin-right: 25px;
-            border-radius: 10px;
-            object-fit: contain;
-        }}
-        .app-title {{
-            font-size: 3.0em;
-            font-weight: 800;
-            color: #195190; 
-        }}
-        .app-subtitle {{
-            font-size: 1.1em;
-            color: #3e5f7d;
-        }}
+        .header-container {{ display: flex; align-items: center; padding-bottom: 20px; }}
+        .logo-img {{ width: 80px; height: 80px; margin-right: 25px; border-radius: 10px; object-fit: contain; }}
+        .app-title {{ font-size: 3.0em; font-weight: 800; color: #195190; }}
+        .app-subtitle {{ font-size: 1.1em; color: #3e5f7d; }}
         </style>
         <div class="header-container">
             <img class="logo-img" src="{LOGO_URL}"> 
@@ -121,12 +82,10 @@ def page_1_input_patient_info():
     st.markdown("## 📋 Aşama 1: Temel Hasta Bilgileri ve Risk Değerlendirmesi")
     
     col1, col2 = st.columns(2)
-    
     with col1:
         st.subheader("Hayvan Türü ve Ağırlığı")
         tur_secimi = st.radio("Hayvan Türü Seçin:", ('Köpek', 'Kedi'), key="p1_tur")
         st.session_state['tur_secimi'] = tur_secimi.lower().replace('ö', 'o').replace('ü', 'u')
-        
         vucut_agirligi = st.number_input("Vücut Ağırlığı (kg):", min_value=0.1, value=st.session_state['vucut_agirligi'], step=0.1, format="%.1f", key="p1_va")
         st.session_state['vucut_agirligi'] = vucut_agirligi
 
@@ -149,17 +108,15 @@ def page_2_select_anesthetics():
     st.markdown("---")
 
     col_ilac_1, col_ilac_2, col_ilac_3 = st.columns(3)
-    
     secili_ilaclar_temp = {}
     
-    # Tüm İlaç Listeleri
+    # Tüm İlaç Listeleri ve Yollar
     opioid_listesi = ['Yok', 'Butorphanol', 'Tramadol', 'Morfin', 'Hydromorphone', 'Buprenorfin']
     sedatif_listesi = ['Yok', 'Midazolam', 'Diazepam', 'Medetomidine', 'Dexmedetomidine', 'Acepromazine']
     induksiyon_listesi = ['Propofol', 'Alfaxalone', 'Ketamin (Manuel Doz)']
     
-    # Uygulama Yolları
     uygulama_yollari_opioid_sedatif = ['IM (Kas İçi)', 'IV (Damar İçi)', 'SC (Deri Altı)', 'IN (İntranazal)']
-    uygulama_yollari_induksiyon = ['IV (Damar İçi)', 'IM (Kas İçi)'] # İndüksiyon için daha kısıtlı yol sunuldu
+    uygulama_yollari_induksiyon = ['IV (Damar İçi)', 'IM (Kas İçi)']
 
     # --- A. PREMEDİKASYON (OPİOİD) ---
     with col_ilac_1:
@@ -167,6 +124,7 @@ def page_2_select_anesthetics():
         opioid_secim = st.selectbox("1. Opioid Seçimi:", opioid_listesi, key="p2_op_secim")
         
         if opioid_secim != 'Yok':
+            # **Uygulama Yolu Seçimi**
             opioid_yol = st.selectbox("2. Uygulama Yolu:", uygulama_yollari_opioid_sedatif, key="p2_op_yol")
             opioid_kons_varsayilan = ILAC_KONSLARI.get(opioid_secim, 1.0)
             opioid_kons = st.number_input(f"3. Konsantrasyon (mg/mL):", value=opioid_kons_varsayilan, step=0.1, format="%.1f", key="p2_op_kons")
@@ -180,6 +138,7 @@ def page_2_select_anesthetics():
         sedatif_secim = st.selectbox("1. Sedatif Seçimi:", sedatif_listesi, key="p2_sed_secim")
 
         if sedatif_secim != 'Yok':
+            # **Uygulama Yolu Seçimi**
             sedatif_yol = st.selectbox("2. Uygulama Yolu:", uygulama_yollari_opioid_sedatif, key="p2_sed_yol")
             sedatif_kons_varsayilan = ILAC_KONSLARI.get(sedatif_secim, 5.0)
             sedatif_kons = st.number_input(f"3. Konsantrasyon (mg/mL):", value=sedatif_kons_varsayilan, step=0.1, format="%.1f", key="p2_sed_kons")
@@ -194,6 +153,7 @@ def page_2_select_anesthetics():
         
         if induksiyon_secim != 'Ketamin (Manuel Doz)':
             ind_adi = induksiyon_secim
+            # **Uygulama Yolu Seçimi**
             ind_yol = st.selectbox("2. Uygulama Yolu:", uygulama_yollari_induksiyon, key="p2_ind_yol")
             ind_kons_varsayilan = ILAC_KONSLARI.get(ind_adi, 10.0)
             ind_kons = st.number_input(f"3. Konsantrasyon (mg/mL):", value=ind_kons_varsayilan, step=0.1, format="%.1f", key="p2_ind_kons")
@@ -230,7 +190,6 @@ def page_3_show_results():
     asa_sinifi = st.session_state['asa_sinifi']
     secili_ilaclar = st.session_state['secili_ilaclar']
     
-    # Doz Ayarı Mantığı
     doz_ayari = 'standart'
     if 'III' in asa_sinifi or 'IV' in asa_sinifi:
         doz_ayari = 'düşük'
@@ -249,26 +208,29 @@ def page_3_show_results():
             ilac = secili_ilaclar[tip]
             ilac_adi = ilac['ad']
             ilac_kons = ilac['kons']
-            ilac_yol = ilac['yol'] # Yeni eklenen uygulama yolu
+            ilac_yol = ilac['yol']
             
             with cols[i]:
                 st.markdown(f"**{tip}: {ilac_adi}**")
                 st.caption(f"Uygulama Yolu: **{ilac_yol}**")
                 
                 if ilac_adi == 'Ketamin':
-                    # Manuel giriş yapıldıysa onu kullan
                     dozaj_mg_kg = ilac['manuel_doz_mg_kg']
                     st.caption(f"Manuel Doz: {dozaj_mg_kg} mg/kg")
                 else:
                     # Otomatik dozajı Uygulama Yolu'na göre çek
-                    # Eğer seçilen uygulama yolu o ilaç için tanımlı değilse, IM/IV'dan birini varsay (genel güvenli uygulama yolu)
                     doz_set = PROTOKOL_DOZLAR[tur_secimi].get(ilac_adi, {}).get(ilac_yol, None)
                     
                     if doz_set is None:
                         # Eğer seçilen yol (Örn: SC/IN) listede yoksa IM'yi varsay
-                        yol_varsayilan = 'IM' 
-                        dozaj_mg_kg = PROTOKOL_DOZLAR[tur_secimi].get(ilac_adi, {}).get(yol_varsayilan, {'standart': 1.0, 'düşük': 0.5})[doz_ayari]
-                        st.warning(f"⚠️ '{ilac_yol}' için kesin protokol bulunamadı. **{yol_varsayilan}** dozu varsayıldı.")
+                        yol_varsayilan = 'IM'
+                        # Tramadol/Buprenorfin için IM/IV yoksa genel dozu varsay
+                        if ilac_adi in ['Tramadol', 'Buprenorfin']: 
+                             dozaj_mg_kg = PROTOKOL_DOZLAR[tur_secimi].get(ilac_adi, {}).get('IM', {'standart': 1.0, 'düşük': 0.5})[doz_ayari]
+                        else:
+                             dozaj_mg_kg = PROTOKOL_DOZLAR[tur_secimi].get(ilac_adi, {}).get(yol_varsayilan, {'standart': 1.0, 'düşük': 0.5})[doz_ayari]
+                        
+                        st.warning(f"⚠️ **{ilac_yol}** için kesin protokol bulunamadı. **{yol_varsayilan}** dozu varsayıldı.")
                     else:
                         dozaj_mg_kg = doz_set[doz_ayari]
                     
