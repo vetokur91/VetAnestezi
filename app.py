@@ -1,15 +1,13 @@
 import streamlit as st
 
 # --- 1. SABİT VERİLER VE PROTOKOL TANIMLARI ---
-
-# İlaç Konsantrasyonları (Varsayılan değerler)
+# (Bu bölüm önceki versiyonla aynı kalmıştır)
 ILAC_KONSLARI = {
     "Butorphanol": 10.0, "Tramadol": 50.0, "Morfin": 15.0, "Hydromorphone": 2.0, "Buprenorfin": 0.3,
     "Acepromazine": 10.0, "Medetomidine": 1.0, "Dexmedetomidine": 0.5, "Diazepam": 5.0, "Midazolam": 5.0,
     "Propofol": 10.0, "Alfaxalone": 10.0, "Ketamin": 100.0,
 }
 
-# ASA Risk, Türe ve Uygulama Yoluna Göre Örnek Dozajlar (mg/kg)
 PROTOKOL_DOZLAR = {
     'kopek': {
         'Butorphanol': {'IM': {'standart': 0.3, 'düşük': 0.15}, 'IV': {'standart': 0.2, 'düşük': 0.1}, 'SC': {'standart': 0.4, 'düşük': 0.2}, 'IN': {'standart': 0.4, 'düşük': 0.2}},
@@ -54,11 +52,79 @@ if 'vucut_agirligi' not in st.session_state: st.session_state['vucut_agirligi'] 
 if 'tur_secimi' not in st.session_state: st.session_state['tur_secimi'] = 'kopek'
 if 'asa_sinifi' not in st.session_state: st.session_state['asa_sinifi'] = 'ASA I (Sağlıklı)'
 if 'secili_ilaclar' not in st.session_state: st.session_state['secili_ilaclar'] = {}
+# Chatbot için yeni oturum durumu
+if 'messages' not in st.session_state:
+    st.session_state['messages'] = [{'role': 'assistant', 'content': "Merhaba! Tuvecca Anestezi Asistanıyım. Uygulama nasıl kullanılır, dozlar nasıl hesaplanır, ASA nedir gibi sorularınızı yanıtlayabilirim."}]
 
 def go_to_page(page_num):
     st.session_state['page'] = page_num
 
-# --- 4. ARAYÜZ FONKSİYONLARI ---
+# --- 4. CHATBOT MANTIĞI ---
+def generate_ai_response(prompt):
+    """Basit kural tabanlı veya bağlam temelli yapay zeka yanıtı üretir."""
+    prompt_lower = prompt.lower()
+    
+    # Uygulama Kullanımı
+    if "kullanım" in prompt_lower or "nasıl kullanılır" in prompt_lower:
+        return "Uygulama 3 aşamadan oluşur: 1. Hasta bilgisi (ağırlık/tür/ASA) girilir. 2. Kullanmak istediğiniz ilaçlar ve uygulama yolları seçilir. 3. Nihai dozaj sonuçları otomatik hesaplanır."
+    
+    # Hesaplama Mantığı
+    elif "doz" in prompt_lower and ("hesap" in prompt_lower or "nasıl" in prompt_lower):
+        return "Dozaj (mL) şu formülle hesaplanır: `(Vücut Ağırlığı (kg) * Dozaj (mg/kg)) / Konsantrasyon (mg/mL)`. Dozajlar risk sınıfına ve uygulama yoluna göre otomatik ayarlanır."
+    
+    # ASA Açıklamaları
+    elif "asa" in prompt_lower:
+        if "i" in prompt_lower:
+             return "ASA I: Sağlıklı hasta. Elektif cerrahi için idealdir."
+        elif "ii" in prompt_lower:
+             return "ASA II: Hafif sistemik hastalığı olan hasta (Örn: yaşlı, hafif obez). Düşük protokole geçiş düşünülebilir."
+        elif "iii" in prompt_lower:
+             return "ASA III: Şiddetli sistemik hastalığı olan hasta (Örn: anemi, hafif kalp yetmezliği). Düşük doz protokolü zorunludur."
+        elif "iv" in prompt_lower:
+             return "ASA IV: Hayati tehlike arz eden, şiddetli sistemik hastalığı olan hasta. Mümkün olan en düşük dozlar ve IV infüzyon tercih edilmelidir."
+        else:
+             return "ASA, anestezi riskini belirlemek için kullanılan Fiziksel Durum Sınıflandırmasıdır (ASA I - IV)."
+             
+    # Uygulama Yolları
+    elif "im" in prompt_lower or "iv" in prompt_lower or "sc" in prompt_lower or "in" in prompt_lower:
+        if "im" in prompt_lower: return "IM: Intramusküler (Kas içi) uygulama yoludur. Emilim IV'den yavaştır."
+        elif "iv" in prompt_lower: return "IV: Intravenöz (Damar içi) uygulama yoludur. En hızlı etkiyi sağlar, indüksiyonda tercih edilir."
+        elif "sc" in prompt_lower: return "SC: Subkutanöz (Deri altı) uygulama yoludur. Emilim en yavaştır."
+        elif "in" in prompt_lower: return "IN: Intranazal (Burun içi) uygulama yoludur. Mukozadan emilim hızlı olabilir."
+        else: return "IM (Kas İçi), IV (Damar İçi), SC (Deri Altı) gibi yollar, ilacın vücuda giriş şeklini ve dozajını etkiler."
+    
+    # Default Cevap
+    else:
+        return "Bu konu hakkında uygulama içinde bilgi veremiyorum. Lütfen uygulama kullanımı, doz hesaplama veya ASA risk sınıfları ile ilgili bir soru sorun."
+
+def render_chatbot():
+    """Kenar çubuğuna (sidebar) yapay zeka sohbet asistanını ekler."""
+    
+    with st.sidebar:
+        st.subheader("💬 Tuvecca Anestezi Asistanı")
+        
+        # Sohbet geçmişini görüntüle
+        for message in st.session_state['messages']:
+            with st.chat_message(message['role']):
+                st.write(message['content'])
+
+        # Kullanıcıdan girdi al
+        prompt = st.chat_input("Sorunuzu buraya yazın...")
+        
+        if prompt:
+            # Kullanıcı mesajını geçmişe ekle
+            st.session_state['messages'].append({'role': 'user', 'content': prompt})
+            with st.chat_message('user'):
+                st.write(prompt)
+            
+            # Yapay zeka yanıtını oluştur ve geçmişe ekle
+            with st.chat_message('assistant'):
+                with st.spinner("Asistan yanıt üretiyor..."):
+                    ai_response = generate_ai_response(prompt)
+                    st.write(ai_response)
+                    st.session_state['messages'].append({'role': 'assistant', 'content': ai_response})
+
+# --- 5. ARAYÜZ FONKSİYONLARI (CHATBOT ENTEGRELİ) ---
 
 def render_header():
     LOGO_URL = "https://images.squarespace-cdn.com/content/v1/64b4f89629c6c70b36f31cbb/ec7840bb-fd29-4b5d-8d82-a2c4bfd26a68/logo.png"
@@ -102,7 +168,6 @@ def page_1_input_patient_info():
         st.info("Risk sınıfına göre tüm ilaç dozları otomatik olarak düşük veya standart protokolden seçilecektir.")
         
     st.markdown("---")
-    # TEK TIKLAMA İLE GEÇİŞ
     if st.button("2. AŞAMAYA GEÇ: İlaç Seçimi ve Uygulama Yolu", type="primary", key="btn_next_p1"):
         go_to_page(2)
 
@@ -155,8 +220,6 @@ def page_2_select_anesthetics():
         
         if induksiyon_secim != 'Ketamin (Manuel Doz)':
             ind_adi = induksiyon_secim
-            
-            # Propofol/Alfaxalone için uygulama yolu IV kabul edilir
             st.markdown("2. Uygulama Yolu: **IV (Damar İçi)**")
             ind_yol = 'IV' 
             
@@ -166,7 +229,6 @@ def page_2_select_anesthetics():
             secili_ilaclar_temp['İndüksiyon'] = {'ad': ind_adi, 'kons': ind_kons, 'yol': ind_yol}
             st.caption("Dozlar IV protokolüne göre belirlenecektir.")
         else:
-            # Ketamin'de manuel doz ve uygulama yolu seçimi
             ketamin_yol_secimi = st.selectbox("2. Uygulama Yolu:", uygulama_yollari_ketamin, key="p2_ket_yol")
             ketamin_yol = ketamin_yol_secimi.split(' ')[0]
             
@@ -181,11 +243,9 @@ def page_2_select_anesthetics():
     st.markdown("---")
     col_nav_1, col_nav_2 = st.columns(2)
     with col_nav_1:
-        # TEK TIKLAMA İLE GERİ DÖNÜŞ
         if st.button("⬅️ 1. Aşamaya Geri Dön", key="btn_prev_p2"):
             go_to_page(1)
     with col_nav_2:
-        # TEK TIKLAMA İLE İLERİ GEÇİŞ
         if st.button("3. AŞAMAYA GEÇ: Doz Hesaplama Sonuçları", type="primary", key="btn_next_p2"):
             st.session_state['secili_ilaclar'] = secili_ilaclar_temp
             go_to_page(3)
@@ -227,14 +287,10 @@ def page_3_show_results():
                     dozaj_mg_kg = ilac['manuel_doz_mg_kg']
                     st.caption(f"Manuel Doz: {dozaj_mg_kg} mg/kg")
                 else:
-                    # Otomatik dozajı Uygulama Yolu'na göre çek
                     doz_set = PROTOKOL_DOZLAR[tur_secimi].get(ilac_adi, {}).get(ilac_yol, None)
                     
                     if doz_set is None:
-                        # Eğer seçilen yol o ilaç için tanımlı değilse, IM/IV'den uygun olanı varsay
                         yol_varsayilan = 'IV' if tip == 'İndüksiyon' else 'IM'
-                        
-                        # Eğer Propofol/Alfaxalone için yanlışlıkla farklı bir yol seçildiyse IV'yi varsay (Ancak bu Aşama 2'de engellendi)
                         dozaj_mg_kg = PROTOKOL_DOZLAR[tur_secimi].get(ilac_adi, {}).get(yol_varsayilan, {'standart': 1.0, 'düşük': 0.5})[doz_ayari]
                         st.warning(f"⚠️ **{ilac_yol}** için kesin protokol bulunamadı. **{yol_varsayilan}** dozu varsayıldı.")
                     else:
@@ -273,14 +329,14 @@ def page_3_show_results():
         st.metric(label=f"Damla Hızı ({set_faktor} damla/mL)", value=f"{round(damla_hizi)} damla/dakika")
 
     st.markdown("---")
-    # TEK TIKLAMA İLE GERİ DÖNÜŞ
     if st.button("⬅️ Protokolü Tekrar Düzenle (2. Aşamaya Dön)", type="secondary", key="btn_prev_p3"):
         go_to_page(2)
 
 
-# --- 5. ANA UYGULAMA MANTIĞI ---
+# --- 6. ANA UYGULAMA MANTIĞI ---
 
 render_header()
+render_chatbot() # Yeni: Kenar çubuğunda chatbot'u çalıştır
 
 if st.session_state['page'] == 1:
     page_1_input_patient_info()
