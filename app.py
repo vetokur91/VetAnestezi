@@ -57,8 +57,14 @@ if 'asa_sinifi' not in st.session_state: st.session_state['asa_sinifi'] = 'ASA I
 if 'secili_ilaclar' not in st.session_state: st.session_state['secili_ilaclar'] = {}
 if 'messages' not in st.session_state:
     st.session_state['messages'] = [{'role': 'assistant', 'content': "Merhaba! Tuvecca Anestezi Asistanıyım. Uygulama nasıl kullanılır, dozlar nasıl hesaplanır, ASA nedir gibi sorularınızı yanıtlayabilirim."}]
-# Kan Tablosu için yeni oturum durumu
 if 'uploaded_kan_tablosu' not in st.session_state: st.session_state['uploaded_kan_tablosu'] = None
+# Yeni eklenen kan değerleri için başlangıç değerleri
+if 'WBC' not in st.session_state: st.session_state['WBC'] = 10.0
+if 'HCT' not in st.session_state: st.session_state['HCT'] = 40.0
+if 'BUN' not in st.session_state: st.session_state['BUN'] = 20.0
+if 'CREA' not in st.session_state: st.session_state['CREA'] = 1.0
+if 'ALT' not in st.session_state: st.session_state['ALT'] = 50
+if 'GLU' not in st.session_state: st.session_state['GLU'] = 100
 
 def go_to_page(page_num):
     st.session_state['page'] = page_num
@@ -69,7 +75,7 @@ def generate_ai_response(prompt):
     
     # Uygulama Kullanımı
     if "kullanım" in prompt_lower or "nasıl kullanılır" in prompt_lower:
-        return "Uygulama 3 aşamadan oluşur: 1. Hasta bilgisi (ağırlık/tür/ASA) girilir ve isterseniz kan tablosunu yüklersiniz. 2. Kullanmak istediğiniz ilaçlar ve uygulama yolları seçilir. 3. Nihai dozaj sonuçları otomatik hesaplanır."
+        return "Uygulama 3 aşamadan oluşur: 1. Hasta bilgisi (ağırlık/tür/ASA) ve kan tablosu verileri girilir. 2. Kullanmak istediğiniz ilaçlar ve uygulama yolları seçilir. 3. Nihai dozaj sonuçları ve model analizi otomatik hesaplanır."
     
     # Hesaplama Mantığı
     elif "doz" in prompt_lower and ("hesap" in prompt_lower or "nasıl" in prompt_lower):
@@ -88,14 +94,6 @@ def generate_ai_response(prompt):
         else:
              return "ASA, anestezi riskini belirlemek için kullanılan Fiziksel Durum Sınıflandırmasıdır (ASA I - IV)."
              
-    # Uygulama Yolları
-    elif "im" in prompt_lower or "iv" in prompt_lower or "sc" in prompt_lower or "in" in prompt_lower:
-        if "im" in prompt_lower: return "IM: Intramusküler (Kas içi) uygulama yoludur. Emilim IV'den yavaştır."
-        elif "iv" in prompt_lower: return "IV: Intravenöz (Damar içi) uygulama yoludur. En hızlı etkiyi sağlar, indüksiyonda tercih edilir."
-        elif "sc" in prompt_lower: return "SC: Subkutanöz (Deri altı) uygulama yoludur. Emilim en yavaştır."
-        elif "in" in prompt_lower: return "IN: Intranazal (Burun içi) uygulama yoludur. Mukozadan emilim hızlı olabilir."
-        else: return "IM (Kas İçi), IV (Damar İçi), SC (Deri Altı) gibi yollar, ilacın vücuda giriş şeklini ve dozajını etkiler."
-    
     # Default Cevap
     else:
         return "Bu konu hakkında uygulama içinde bilgi veremiyorum. Lütfen uygulama kullanımı, doz hesaplama veya ASA risk sınıfları ile ilgili bir soru sorun."
@@ -166,8 +164,10 @@ def page_1_input_patient_info():
         
     st.markdown("---")
     
-    # YENİ EKLEME: DOSYA YÜKLEYİCİ
-    with st.expander("🔬 Derin Öğrenme Analizi İçin Kan Tablosu Yükle"):
+    # KAN TABLOSU YÜKLEYİCİ VE MANUEL GİRİŞ
+    with st.expander("🔬 Derin Öğrenme Analizi İçin Kan Tablosu Verileri"):
+        
+        # 1. Dosya Yükleyici
         uploaded_file = st.file_uploader(
             "Kan tablosu dosyanızı yükleyin (Görüntü, PDF veya CSV)", 
             type=["png", "jpg", "jpeg", "pdf", "csv"]
@@ -175,20 +175,34 @@ def page_1_input_patient_info():
         
         if uploaded_file is not None:
             st.session_state['uploaded_kan_tablosu'] = uploaded_file
-            st.success(f"'{uploaded_file.name}' dosyası yüklendi. Verilerin okunması ve analiz edilmesi için Derin Öğrenme modeli gereklidir.")
+            st.success(f"'{uploaded_file.name}' dosyası yüklendi. Verilerin okunması için OCR/Pandas entegrasyonu gereklidir.")
             
-            # --- Örnek Veri Okuma (Sadece CSV için Kolay Okuma Örneği) ---
             if uploaded_file.name.endswith('.csv'):
-                # Bu kısım, derin öğrenme modeliniz tarafından okunacak formattır.
-                # Kan değerlerini okuyup bir Pandas DataFrame olarak kaydedebiliriz.
-                # import pandas as pd
-                # df = pd.read_csv(uploaded_file)
-                st.caption("Eğer CSV ise, kod ileride Pandas ile kolayca okunabilir.")
+                st.caption("CSV formatı model için en kolay okunabilir formattır. İleride Pandas ile bu veriyi işleyebiliriz.")
             else:
-                st.caption("Görüntü/PDF formatları için OCR (Görüntü Tanıma) entegrasyonu gereklidir.")
+                st.caption("⚠️ **Görüntü/PDF** formatları için **Gelişmiş OCR (Görüntü Tanıma) entegrasyonu** gereklidir.")
         else:
             st.session_state['uploaded_kan_tablosu'] = None
-            st.caption("Yüklenen dosya, modelinizin anestezi risk tahminlerini desteklemek için kullanılacaktır.")
+
+        st.markdown("### Veya Temel Kan Değerlerini Elle Girin (Önerilen Hızlı Başlangıç)")
+        
+        # 2. Manuel Veri Girişi
+        col_blood_1, col_blood_2, col_blood_3 = st.columns(3)
+        
+        with col_blood_1:
+            # st.number_input güncellenmiş değerleri doğrudan session_state'e kaydeder
+            st.session_state['WBC'] = st.number_input("WBC (10^3/uL)", min_value=0.1, value=st.session_state['WBC'], step=0.1, format="%.1f", key="input_wbc")
+            st.session_state['HCT'] = st.number_input("HCT (%)", min_value=1.0, value=st.session_state['HCT'], step=0.1, format="%.1f", key="input_hct")
+        
+        with col_blood_2:
+            st.session_state['BUN'] = st.number_input("BUN (mg/dL)", min_value=1.0, value=st.session_state['BUN'], step=1.0, format="%d", key="input_bun")
+            st.session_state['CREA'] = st.number_input("Kreatinin (mg/dL)", min_value=0.1, value=st.session_state['CREA'], step=0.1, format="%.1f", key="input_crea")
+            
+        with col_blood_3:
+            st.session_state['ALT'] = st.number_input("ALT (U/L)", min_value=1, value=st.session_state['ALT'], step=1, key="input_alt")
+            st.session_state['GLU'] = st.number_input("GLU (mg/dL)", min_value=1, value=st.session_state['GLU'], step=1, key="input_glu")
+            
+        st.caption("Elle girilen bu veriler, 3. aşamada derin öğrenme modelinizin anestezi risk tahminine girdi olarak sunulacaktır.")
     
     st.markdown("---")
     
@@ -199,192 +213,6 @@ def page_2_select_anesthetics():
     st.markdown("## 🛒 Aşama 2: Elinizdeki İlaçları, Konsantrasyonlarını ve Uygulama Yollarını Seçin")
     st.info(f"Hasta: **{st.session_state['vucut_agirligi']} kg {st.session_state['tur_secimi'].upper()}** | Risk: **{st.session_state['asa_sinifi']}**")
     
-    # Kan Tablosu Yüklendiyse Ek Bilgi Gösterimi
-    if st.session_state['uploaded_kan_tablosu']:
-        st.warning("Kan tablosu yüklendi. Derin öğrenme entegrasyonu tamamlandığında, buraya kan tablosu analizi sonuçları ve protokol tavsiyeleri eklenecektir.")
-
-    st.markdown("---")
-
-    col_ilac_1, col_ilac_2, col_ilac_3 = st.columns(3)
-    secili_ilaclar_temp = {}
-    
-    opioid_listesi = ['Yok', 'Butorphanol', 'Tramadol', 'Morfin', 'Hydromorphone', 'Buprenorfin']
-    sedatif_listesi = ['Yok', 'Midazolam', 'Diazepam', 'Medetomidine', 'Dexmedetomidine', 'Acepromazine']
-    induksiyon_listesi = ['Propofol', 'Alfaxalone', 'Ketamin (Manuel Doz)']
-    
-    uygulama_yollari_opioid_sedatif = ['IM (Kas İçi)', 'IV (Damar İçi)', 'SC (Deri Altı)', 'IN (İntranazal)']
-    uygulama_yollari_ketamin = ['IV (Damar İçi)', 'IM (Kas İçi)']
-
-    # --- A. PREMEDİKASYON (OPİOİD) ---
-    with col_ilac_1:
-        st.subheader("A. Opioid Analjezik")
-        opioid_secim = st.selectbox("1. Opioid Seçimi:", opioid_listesi, key="p2_op_secim")
-        
-        if opioid_secim != 'Yok':
-            opioid_yol = st.selectbox("2. Uygulama Yolu:", uygulama_yollari_opioid_sedatif, key="p2_op_yol")
-            opioid_kons_varsayilan = ILAC_KONSLARI.get(opioid_secim, 1.0)
-            opioid_kons = st.number_input(f"3. Konsantrasyon (mg/mL):", value=opioid_kons_varsayilan, step=0.1, format="%.1f", key="p2_op_kons")
-            
-            secili_ilaclar_temp['Opioid'] = {'ad': opioid_secim, 'kons': opioid_kons, 'yol': opioid_yol.split(' ')[0]}
-            st.caption("Dozlar 3. aşamada uygulama yolu ve riske göre otomatik belirlenecektir.")
-
-    # --- B. PREMEDİKASYON (SEDATİF/TRANQUİLİZAN) ---
-    with col_ilac_2:
-        st.subheader("B. Sedatif / Tranquilizan")
-        sedatif_secim = st.selectbox("1. Sedatif Seçimi:", sedatif_listesi, key="p2_sed_secim")
-
-        if sedatif_secim != 'Yok':
-            sedatif_yol = st.selectbox("2. Uygulama Yolu:", uygulama_yollari_opioid_sedatif, key="p2_sed_yol")
-            sedatif_kons_varsayilan = ILAC_KONSLARI.get(sedatif_secim, 5.0)
-            sedatif_kons = st.number_input(f"3. Konsantrasyon (mg/mL):", value=sedatif_kons_varsayilan, step=0.1, format="%.1f", key="p2_sed_kons")
-            
-            secili_ilaclar_temp['Sedatif'] = {'ad': sedatif_secim, 'kons': sedatif_kons, 'yol': sedatif_yol.split(' ')[0]}
-            st.caption("Dozlar 3. aşamada uygulama yolu ve riske göre otomatik belirlenecektir.")
-
-    # --- C. İNDÜKSİYON AJANI ---
-    with col_ilac_3:
-        st.subheader("C. İndüksiyon Aj. (IV)")
-        induksiyon_secim = st.selectbox("1. İndüksiyon Seçimi:", induksiyon_listesi, key="p2_ind_secim")
-        
-        if induksiyon_secim != 'Ketamin (Manuel Doz)':
-            ind_adi = induksiyon_secim
-            st.markdown("2. Uygulama Yolu: **IV (Damar İçi)**")
-            ind_yol = 'IV' 
-            
-            ind_kons_varsayilan = ILAC_KONSLARI.get(ind_adi, 10.0)
-            ind_kons = st.number_input(f"3. Konsantrasyon (mg/mL):", value=ind_kons_varsayilan, step=0.1, format="%.1f", key="p2_ind_kons")
-            
-            secili_ilaclar_temp['İndüksiyon'] = {'ad': ind_adi, 'kons': ind_kons, 'yol': ind_yol}
-            st.caption("Dozlar IV protokolüne göre belirlenecektir.")
-        else:
-            ketamin_yol_secimi = st.selectbox("2. Uygulama Yolu:", uygulama_yollari_ketamin, key="p2_ket_yol")
-            ketamin_yol = ketamin_yol_secimi.split(' ')[0]
-            
-            ketamin_kons_varsayilan = ILAC_KONSLARI.get('Ketamin', 100.0)
-            ketamin_kons = st.number_input("3. Kons. (mg/mL):", value=ketamin_kons_varsayilan, step=1.0, key="p2_ket_kons")
-            ketamin_doz = st.number_input("4. Ketamin Dozu (mg/kg):", value=7.0, step=0.5, key="p2_ket_doz")
-            
-            secili_ilaclar_temp['İndüksiyon'] = {'ad': 'Ketamin', 'kons': ketamin_kons, 'yol': ketamin_yol, 'manuel_doz_mg_kg': ketamin_doz}
-            st.caption("Ketamin dozu manuel girilmiştir.")
-
-
-    st.markdown("---")
-    col_nav_1, col_nav_2 = st.columns(2)
-    with col_nav_1:
-        if st.button("⬅️ 1. Aşamaya Geri Dön", key="btn_prev_p2"):
-            go_to_page(1)
-    with col_nav_2:
-        if st.button("3. AŞAMAYA GEÇ: Doz Hesaplama Sonuçları", type="primary", key="btn_next_p2"):
-            st.session_state['secili_ilaclar'] = secili_ilaclar_temp
-            go_to_page(3)
-
-
-def page_3_show_results():
-    st.markdown("## ✅ Aşama 3: Nihai Doz Hesaplama Sonuçları")
-    
-    va_kg = st.session_state['vucut_agirligi']
-    tur_secimi = st.session_state['tur_secimi']
-    asa_sinifi = st.session_state['asa_sinifi']
-    secili_ilaclar = st.session_state['secili_ilaclar']
-    
-    # Kan tablosu analizi bölümü (Model sonuçları buraya gelecek)
-    if st.session_state['uploaded_kan_tablosu']:
-        st.subheader("🚨 Kan Tablosu Derin Öğrenme Analizi")
-        st.warning("Model entegrasyonu henüz tamamlanmadı. Analiz sonucu burada gösterilecektir. Yüklenen dosya: " + st.session_state['uploaded_kan_tablosu'].name)
-        st.markdown("---")
-
-    doz_ayari = 'standart'
-    if 'III' in asa_sinifi or 'IV' in asa_sinifi:
-        doz_ayari = 'düşük'
-        st.error(f"⚠️ YÜKSEK RİSK ({asa_sinifi}) nedeniyle tüm dozlar otomatik olarak **DÜŞÜK PROTOKOL** ile hesaplanmıştır.", icon="❗")
-    else:
-        st.success(f"Düşük Risk ({asa_sinifi}) nedeniyle tüm dozlar **STANDART PROTOKOL** ile hesaplanmıştır.")
-
-    st.markdown("---")
-    st.subheader(f"1. İlaç Dozajları (Hasta: {va_kg:.1f} kg)")
-
-    cols = st.columns(3)
-    ilac_tipleri = ['Opioid', 'Sedatif', 'İndüksiyon']
-    
-    for i, tip in enumerate(ilac_tipleri):
-        if tip in secili_ilaclar:
-            ilac = secili_ilaclar[tip]
-            ilac_adi = ilac['ad']
-            ilac_kons = ilac['kons']
-            ilac_yol = ilac['yol']
-            
-            with cols[i]:
-                st.markdown(f"**{tip}: {ilac_adi}**")
-                st.caption(f"Uygulama Yolu: **{ilac_yol}**")
-                
-                if ilac_adi == 'Ketamin':
-                    dozaj_mg_kg = ilac['manuel_doz_mg_kg']
-                    st.caption(f"Manuel Doz: {dozaj_mg_kg} mg/kg")
-                else:
-                    doz_set = PROTOKOL_DOZLAR[tur_secimi].get(ilac_adi, {}).get(ilac_yol, None)
-                    
-                    if doz_set is None:
-                        yol_varsayilan = 'IV' if tip == 'İndüksiyon' else 'IM'
-                        dozaj_mg_kg = PROTOKOL_DOZLAR[tur_secimi].get(ilac_adi, {}).get(yol_varsayilan, {'standart': 1.0, 'düşük': 0.5})[doz_ayari]
-                        st.warning(f"⚠️ **{ilac_yol}** için kesin protokol bulunamadı. **{yol_varsayilan}** dozu varsayıldı.")
-                    else:
-                        dozaj_mg_kg = doz_set[doz_ayari]
-                    
-                    st.caption(f"Otomatik Doz: {dozaj_mg_kg} mg/kg ({doz_ayari.upper()})")
-
-                toplam_mg, hacim_ml = doz_hesapla(ilac_kons, dozaj_mg_kg, va_kg)
-                
-                st.metric(label="Toplam Doz (mg)", value=f"{toplam_mg:.2f} mg")
-                st.metric(label=f"Çekilecek Hacim (mL)", value=f"{hacim_ml:.3f} mL", help=f"Kullanılan Konsantrasyon: {ilac_kons} mg/mL")
-        else:
-            with cols[i]:
-                st.markdown(f"**{tip}**")
-                st.info("İlaç Seçilmedi")
-
-    # --- SIVI İDAME HESAPLAMALARI ---
-    st.markdown("---")
-    st.subheader("2. Sıvı İdame Hesaplamaları")
-
-    sivi_hizi = 10.0
-    if 'III' in asa_sinifi or 'IV' in asa_sinifi: sivi_hizi = 5.0 
-    st.info(f"Yüksek Risk nedeniyle başlangıç sıvı hızı 5 mL/kg/saat olarak ayarlanmıştır. Hızı elle ayarlayabilirsiniz.")
-
-    sivi_hizi_ayar = st.number_input("İstenen Sıvı Hızı (mL/kg/saat):", value=sivi_hizi, min_value=1.0, step=1.0, key="sivi_ayar")
-    set_faktor = st.radio("Damla Seti Kalibrasyonu (Damla/mL):", (60, 15), help="60: Mikro Set, 15: Makro Set", key="set_ayar")
-
-    saatlik_ihtiyac = va_kg * sivi_hizi_ayar
-    dakikalik_ihtiyac = saatlik_ihtiyac / 60.0
-    damla_hizi = dakikalik_ihtiyac * set_faktor
-
-    col_sivi_1, col_sivi_2 = st.columns(2)
-    with col_sivi_1:
-        st.metric(label="Saatlik İnfüzyon Hızı (Pompa Ayarı)", value=f"{saatlik_ihtiyac:.2f} mL/saat")
-    with col_sivi_2:
-        st.metric(label=f"Damla Hızı ({set_faktor} damla/mL)", value=f"{round(damla_hizi)} damla/dakika")
-
-    st.markdown("---")
-    if st.button("⬅️ Protokolü Tekrar Düzenle (2. Aşamaya Dön)", type="secondary", key="btn_prev_p3"):
-        go_to_page(2)
-
-
-# --- 6. ANA UYGULAMA MANTIĞI ---
-
-render_header()
-render_chatbot()
-
-if st.session_state['page'] == 1:
-    page_1_input_patient_info()
-elif st.session_state['page'] == 2:
-    page_2_select_anesthetics()
-elif st.session_state['page'] == 3:
-    page_3_show_results()
-
-# --- HAZIRLAYICILAR VE SORUMLULUK REDDİ ---
-st.markdown("---")
-st.subheader("Programı Hazırlayanlar")
-st.markdown("""
-* **Doç. Dr. Sıtkıcan OKUR**
-* **Vet Hek Büşra BAYKAL**
-""")
-
-st.caption("🚨 **ÖNEMLİ UYARI:** Bu araç yalnızca eğitim ve hızlı hesaplama amaçlıdır. Verilen dozajlar genel klinik referanslardan alınmıştır ve final kararı her zaman bir **Veteriner Hekim** tarafından verilmelidir.")
+    # Kan Tablosu Yüklendiyse/Girildiyse Ek Bilgi Gösterimi
+    if st.session_state['uploaded_kan_tablosu'] or 'WBC' in st.session_state:
+        st.warning(f"Kan verileri sisteme girildi ({st.session_state.get('WBC', '-')} WBC, {st.session_state.get('BUN', '-')}
