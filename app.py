@@ -245,4 +245,56 @@ def page_3_show_results():
                 toplam_mg, hacim_ml = doz_hesapla(ilac_kons, dozaj_mg_kg, va_kg)
                 
                 st.metric(label="Toplam Doz (mg)", value=f"{toplam_mg:.2f} mg")
-                st.metric(label=f"Çekilecek Hacim (mL
+                st.metric(label=f"Çekilecek Hacim (mL)", value=f"{hacim_ml:.3f} mL", help=f"Kullanılan Konsantrasyon: {ilac_kons} mg/mL")
+        else:
+            with cols[i]:
+                st.markdown(f"**{tip}**")
+                st.info("İlaç Seçilmedi")
+
+    # --- SIVI İDAME HESAPLAMALARI ---
+    st.markdown("---")
+    st.subheader("2. Sıvı İdame Hesaplamaları")
+
+    sivi_hizi = 10.0
+    if 'III' in asa_sinifi or 'IV' in asa_sinifi: sivi_hizi = 5.0 
+    st.info(f"Yüksek Risk nedeniyle başlangıç sıvı hızı 5 mL/kg/saat olarak ayarlanmıştır. Hızı elle ayarlayabilirsiniz.")
+
+    sivi_hizi_ayar = st.number_input("İstenen Sıvı Hızı (mL/kg/saat):", value=sivi_hizi, min_value=1.0, step=1.0, key="sivi_ayar")
+    set_faktor = st.radio("Damla Seti Kalibrasyonu (Damla/mL):", (60, 15), help="60: Mikro Set, 15: Makro Set", key="set_ayar")
+
+    saatlik_ihtiyac = va_kg * sivi_hizi_ayar
+    dakikalik_ihtiyac = saatlik_ihtiyac / 60.0
+    damla_hizi = dakikalik_ihtiyac * set_faktor
+
+    col_sivi_1, col_sivi_2 = st.columns(2)
+    with col_sivi_1:
+        st.metric(label="Saatlik İnfüzyon Hızı (Pompa Ayarı)", value=f"{saatlik_ihtiyac:.2f} mL/saat")
+    with col_sivi_2:
+        st.metric(label=f"Damla Hızı ({set_faktor} damla/mL)", value=f"{round(damla_hizi)} damla/dakika")
+
+    st.markdown("---")
+    # TEK TIKLAMA İLE GERİ DÖNÜŞ
+    if st.button("⬅️ Protokolü Tekrar Düzenle (2. Aşamaya Dön)", type="secondary", key="btn_prev_p3"):
+        go_to_page(2)
+
+
+# --- 5. ANA UYGULAMA MANTIĞI ---
+
+render_header()
+
+if st.session_state['page'] == 1:
+    page_1_input_patient_info()
+elif st.session_state['page'] == 2:
+    page_2_select_anesthetics()
+elif st.session_state['page'] == 3:
+    page_3_show_results()
+
+# --- HAZIRLAYICILAR VE SORUMLULUK REDDİ ---
+st.markdown("---")
+st.subheader("Programı Hazırlayanlar")
+st.markdown("""
+* **Doç. Dr. Sıtkıcan OKUR**
+* **Vet Hek Büşra BAYKAL**
+""")
+
+st.caption("🚨 **ÖNEMLİ UYARI:** Bu araç yalnızca eğitim ve hızlı hesaplama amaçlıdır. Verilen dozajlar genel klinik referanslardan alınmıştır ve final kararı her zaman bir **Veteriner Hekim** tarafından verilmelidir.")
