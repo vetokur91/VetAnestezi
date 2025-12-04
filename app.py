@@ -4,15 +4,22 @@ import streamlit as st
 
 # İlaç Konsantrasyonları (Varsayılan değerler)
 ILAC_KONSLARI = {
+    # Opioidler
     "Butorphanol": 10.0,    # 10 mg/mL
     "Tramadol": 50.0,      # 50 mg/mL
     "Morfin": 15.0,        # 15 mg/mL
+    "Hydromorphone": 2.0,  # 2 mg/mL
+    "Buprenorfin": 0.3,    # 0.3 mg/mL
+    # Sedatifler
     "Acepromazine": 10.0,  # 10 mg/mL
     "Medetomidine": 1.0,   # 1 mg/mL
+    "Dexmedetomidine": 0.5, # 0.5 mg/mL
     "Diazepam": 5.0,       # 5 mg/mL
     "Midazolam": 5.0,      # 5 mg/mL
+    # İndüksiyon
     "Propofol": 10.0,
     "Alfaxalone": 10.0,
+    "Ketamin": 100.0,      # Sadece konsantrasyon için
 }
 
 # ASA Sınıfına ve Türe Göre Örnek Başlangıç Dozaj Aralığı (mg/kg)
@@ -21,10 +28,15 @@ PROTOKOL_DOZLAR = {
         'Butorphanol': {'standart': 0.2, 'düşük': 0.1},
         'Tramadol': {'standart': 3.0, 'düşük': 2.0},
         'Morfin': {'standart': 0.5, 'düşük': 0.2},
+        'Hydromorphone': {'standart': 0.1, 'düşük': 0.05},
+        'Buprenorfin': {'standart': 0.02, 'düşük': 0.01}, # mg/kg
+        
         'Acepromazine': {'standart': 0.03, 'düşük': 0.015}, 
         'Medetomidine': {'standart': 0.01, 'düşük': 0.005}, 
+        'Dexmedetomidine': {'standart': 0.005, 'düşük': 0.0025}, # mg/kg (5µg/kg yerine)
         'Diazepam': {'standart': 0.5, 'düşük': 0.3},
         'Midazolam': {'standart': 0.2, 'düşük': 0.15},
+        
         'Propofol': {'standart': 5.0, 'düşük': 2.5}, 
         'Alfaxalone': {'standart': 3.0, 'düşük': 1.5},
     },
@@ -32,10 +44,15 @@ PROTOKOL_DOZLAR = {
         'Butorphanol': {'standart': 0.3, 'düşük': 0.15},
         'Tramadol': {'standart': 2.0, 'düşük': 1.0},
         'Morfin': {'standart': 0.1, 'düşük': 0.05},
+        'Hydromorphone': {'standart': 0.05, 'düşük': 0.03},
+        'Buprenorfin': {'standart': 0.02, 'düşük': 0.01}, # mg/kg
+        
         'Acepromazine': {'standart': 0.01, 'düşük': 0.005},
         'Medetomidine': {'standart': 0.007, 'düşük': 0.003},
+        'Dexmedetomidine': {'standart': 0.003, 'düşük': 0.0015}, # mg/kg (3µg/kg yerine)
         'Diazepam': {'standart': 0.5, 'düşük': 0.3},
         'Midazolam': {'standart': 0.15, 'düşük': 0.1},
+        
         'Propofol': {'standart': 3.0, 'düşük': 1.5},
         'Alfaxalone': {'standart': 2.5, 'düşük': 1.25},
     }
@@ -72,10 +89,10 @@ def go_to_page(page_num):
 # --- 4. ARAYÜZ FONKSİYONLARI ---
 
 def render_header():
-    # !!! BURAYI LOGONUZUN DİREKT İNTERNET ADRESİYLE DEĞİŞTİRİNİZ. !!!
-    LOGO_URL = "https://i.imgur.com/example_tuvecca_logo.png" # Placeholder Link
+    # Güncellenmiş Logo URL'si
+    LOGO_URL = "https://images.squarespace-cdn.com/content/v1/64b4f89629c6c70b36f31cbb/ec7840bb-fd29-4b5d-8d82-a2c4bfd26a68/logo.png"
     
-    st.set_page_config(page_title="Tuvecca | Gelişmiş Anestezi", layout="wide")
+    st.set_page_config(page_title="Tuvecca | Anestezi Hesaplayıcı", layout="wide")
     
     # HTML ve CSS ile Logoyu Başlığın Üstüne Yerleştirme ve Metinleri Düzeltme
     st.markdown(f"""
@@ -89,13 +106,13 @@ def render_header():
             width: 80px; 
             height: 80px;
             margin-right: 25px;
-            border-radius: 10px; /* Kare logo için hafif yuvarlama */
+            border-radius: 10px;
             object-fit: contain;
         }}
         .app-title {{
             font-size: 3.0em;
             font-weight: 800;
-            color: #195190; /* Tuvecca'nın Mavi Tonu */
+            color: #195190; 
         }}
         .app-subtitle {{
             font-size: 1.1em;
@@ -106,21 +123,19 @@ def render_header():
             <img class="logo-img" src="{LOGO_URL}"> 
             <div>
                 <div class="app-title">TUVECCA</div>
-                <div class="app-subtitle">Veteriner Anestezi Protokol ve Doz Hesaplayıcı</div>
+                <div class="app-subtitle">Profesyonel Veteriner Anestezi Protokol ve Doz Hesaplayıcı</div>
             </div>
         </div>
         <hr style="border: 0; height: 3px; background-color: #f39c12;">
         """, unsafe_allow_html=True)
-    
-    st.markdown("## 🐾 **Aşama 1: Temel Hasta Bilgileri**", unsafe_allow_html=True)
 
 def page_1_input_patient_info():
+    st.markdown("## 📋 Aşama 1: Temel Hasta Bilgileri ve Risk Değerlendirmesi")
     
     col1, col2 = st.columns(2)
     
     with col1:
         st.subheader("Hayvan Türü ve Ağırlığı")
-        # Seçimleri doğrudan session state'e bağla
         tur_secimi = st.radio("Hayvan Türü Seçin:", ('Köpek', 'Kedi'), key="p1_tur")
         st.session_state['tur_secimi'] = tur_secimi.lower().replace('ö', 'o').replace('ü', 'u')
         
@@ -128,20 +143,20 @@ def page_1_input_patient_info():
         st.session_state['vucut_agirligi'] = vucut_agirligi
 
     with col2:
-        st.subheader("Anestezi Risk Sınıfı")
+        st.subheader("ASA Risk Sınıfı")
         asa_sinifi = st.selectbox(
             "ASA Fiziksel Durum Sınıfını Seçin:", 
             ('ASA I (Sağlıklı)', 'ASA II (Hafif Hastalık)', 'ASA III (Şiddetli Hastalık)', 'ASA IV (Hayatı Tehdit Eden)'), key="p1_asa"
         )
         st.session_state['asa_sinifi'] = asa_sinifi
-        st.info("Risk sınıfına göre ilaç dozları otomatik olarak ayarlanacaktır.")
+        st.info("Risk sınıfına göre tüm ilaç dozları otomatik olarak düşük veya standart protokolden seçilecektir.")
         
     st.markdown("---")
     if st.button("2. AŞAMAYA GEÇ: İlaç Seçimi", type="primary"):
         go_to_page(2)
 
 def page_2_select_anesthetics():
-    st.markdown("## 💉 **Aşama 2: Protokol ve İlaç Seçimi**")
+    st.markdown("## 🛒 Aşama 2: Elinizdeki İlaçları ve Konsantrasyonlarını Seçin")
     st.info(f"Hasta: **{st.session_state['vucut_agirligi']} kg {st.session_state['tur_secimi'].upper()}** | Risk: **{st.session_state['asa_sinifi']}**")
     st.markdown("---")
 
@@ -149,39 +164,52 @@ def page_2_select_anesthetics():
     
     secili_ilaclar_temp = {}
     
+    # Tüm Opioidler Listesi
+    opioid_listesi = ['Yok', 'Butorphanol', 'Tramadol', 'Morfin', 'Hydromorphone', 'Buprenorfin']
+    
+    # Tüm Sedatif/Trankilizanlar Listesi
+    sedatif_listesi = ['Yok', 'Midazolam', 'Diazepam', 'Medetomidine', 'Dexmedetomidine', 'Acepromazine']
+
     # --- A. PREMEDİKASYON (OPİOİD) ---
     with col_ilac_1:
         st.subheader("A. Opioid Analjezik")
-        opioid_secim = st.selectbox("Kullanılacak Opioid:", ['Yok', 'Butorphanol', 'Tramadol', 'Morfin'], key="p2_op_secim")
+        opioid_secim = st.selectbox("Kullanılacak Opioid:", opioid_listesi, key="p2_op_secim")
         
         if opioid_secim != 'Yok':
             opioid_kons_varsayilan = ILAC_KONSLARI.get(opioid_secim, 1.0)
             opioid_kons = st.number_input(f"{opioid_secim} Konsantrasyon (mg/mL):", value=opioid_kons_varsayilan, step=0.1, format="%.1f", key="p2_op_kons")
             secili_ilaclar_temp['Opioid'] = {'ad': opioid_secim, 'kons': opioid_kons}
+            st.caption("Dozlar 3. aşamada otomatik olarak belirlenecektir.")
 
     # --- B. PREMEDİKASYON (SEDATİF/TRANQUİLİZAN) ---
     with col_ilac_2:
         st.subheader("B. Sedatif / Tranquilizan")
-        sedatif_secim = st.selectbox("Kullanılacak Sedatif:", ['Yok', 'Midazolam', 'Diazepam', 'Medetomidine', 'Acepromazine'], key="p2_sed_secim")
+        sedatif_secim = st.selectbox("Kullanılacak Sedatif:", sedatif_listesi, key="p2_sed_secim")
 
         if sedatif_secim != 'Yok':
             sedatif_kons_varsayilan = ILAC_KONSLARI.get(sedatif_secim, 5.0)
             sedatif_kons = st.number_input(f"{sedatif_secim} Konsantrasyon (mg/mL):", value=sedatif_kons_varsayilan, step=0.1, format="%.1f", key="p2_sed_kons")
             secili_ilaclar_temp['Sedatif'] = {'ad': sedatif_secim, 'kons': sedatif_kons}
+            st.caption("Dozlar 3. aşamada otomatik olarak belirlenecektir.")
 
     # --- C. İNDÜKSİYON AJANI ---
     with col_ilac_3:
         st.subheader("C. İndüksiyon Aj. (IV)")
-        induksiyon_secim = st.selectbox("Kullanılacak İndüksiyon:", ['Propofol', 'Alfaxalone', 'Ketamin (Manuel)'], key="p2_ind_secim")
+        induksiyon_secim = st.selectbox("Kullanılacak İndüksiyon:", ['Propofol', 'Alfaxalone', 'Ketamin (Manuel Doz)'], key="p2_ind_secim")
 
-        if induksiyon_secim != 'Ketamin (Manuel)':
-            ind_kons_varsayilan = ILAC_KONSLARI.get(induksiyon_secim, 10.0)
-            ind_kons = st.number_input(f"{induksiyon_secim} Konsantrasyon (mg/mL):", value=ind_kons_varsayilan, step=0.1, format="%.1f", key="p2_ind_kons")
-            secili_ilaclar_temp['İndüksiyon'] = {'ad': induksiyon_secim, 'kons': ind_kons}
+        if induksiyon_secim != 'Ketamin (Manuel Doz)':
+            ind_adi = induksiyon_secim
+            ind_kons_varsayilan = ILAC_KONSLARI.get(ind_adi, 10.0)
+            ind_kons = st.number_input(f"{ind_adi} Konsantrasyon (mg/mL):", value=ind_kons_varsayilan, step=0.1, format="%.1f", key="p2_ind_kons")
+            secili_ilaclar_temp['İndüksiyon'] = {'ad': ind_adi, 'kons': ind_kons}
+            st.caption("Dozlar 3. aşamada otomatik olarak belirlenecektir.")
         else:
-            # Ketamin için hekimin manuel doz girmesi teşvik edilir
-            ketamin_kons = st.number_input("Ketamin Kons. (mg/mL):", value=100.0, step=1.0, key="p2_ket_kons")
-            secili_ilaclar_temp['İndüksiyon'] = {'ad': 'Ketamin', 'kons': ketamin_kons, 'manuel_doz_mg_kg': st.number_input("Ketamin Dozu (mg/kg):", value=7.0, step=0.5, key="p2_ket_doz")}
+            # Ketamin'de doz manuel kalmalı
+            ketamin_kons_varsayilan = ILAC_KONSLARI.get('Ketamin', 100.0)
+            ketamin_kons = st.number_input("Ketamin Kons. (mg/mL):", value=ketamin_kons_varsayilan, step=1.0, key="p2_ket_kons")
+            ketamin_doz = st.number_input("Ketamin Dozu (mg/kg):", value=7.0, step=0.5, key="p2_ket_doz")
+            secili_ilaclar_temp['İndüksiyon'] = {'ad': 'Ketamin', 'kons': ketamin_kons, 'manuel_doz_mg_kg': ketamin_doz}
+            st.caption("Ketamin dozu manuel girilmiştir. Kombinasyon önerilir.")
 
 
     st.markdown("---")
@@ -190,13 +218,13 @@ def page_2_select_anesthetics():
         if st.button("⬅️ 1. Aşamaya Geri Dön"):
             go_to_page(1)
     with col_nav_2:
-        if st.button("3. AŞAMAYA GEÇ: Doz Hesaplama", type="primary"):
+        if st.button("3. AŞAMAYA GEÇ: Doz Hesaplama Sonuçları", type="primary"):
             st.session_state['secili_ilaclar'] = secili_ilaclar_temp
             go_to_page(3)
 
 
 def page_3_show_results():
-    st.markdown("## ✅ **Aşama 3: Nihai Doz Hesaplama Sonuçları**")
+    st.markdown("## ✅ Aşama 3: Nihai Doz Hesaplama Sonuçları")
     
     va_kg = st.session_state['vucut_agirligi']
     tur_secimi = st.session_state['tur_secimi']
@@ -207,12 +235,12 @@ def page_3_show_results():
     doz_ayari = 'standart'
     if 'III' in asa_sinifi or 'IV' in asa_sinifi:
         doz_ayari = 'düşük'
-        st.error(f"⚠️ YÜKSEK RİSK ({asa_sinifi}) nedeniyle tüm dozlar otomatik olarak DÜŞÜK PROTOKOL ile hesaplanmıştır.", icon="❗")
+        st.error(f"⚠️ YÜKSEK RİSK ({asa_sinifi}) nedeniyle tüm dozlar otomatik olarak **DÜŞÜK PROTOKOL** ile hesaplanmıştır.", icon="❗")
     else:
-        st.success(f"Düşük Risk ({asa_sinifi}) nedeniyle tüm dozlar STANDART PROTOKOL ile hesaplanmıştır.")
+        st.success(f"Düşük Risk ({asa_sinifi}) nedeniyle tüm dozlar **STANDART PROTOKOL** ile hesaplanmıştır.")
 
     st.markdown("---")
-    st.subheader(f"1. İlaç Dozajı (Hasta: {va_kg:.1f} kg)")
+    st.subheader(f"1. İlaç Dozajları (Hasta: {va_kg:.1f} kg)")
 
     cols = st.columns(3)
     ilac_tipleri = ['Opioid', 'Sedatif', 'İndüksiyon']
@@ -224,7 +252,7 @@ def page_3_show_results():
             ilac_kons = ilac['kons']
             
             with cols[i]:
-                st.markdown(f"**{tip} ({ilac_adi})**")
+                st.markdown(f"**{tip}: {ilac_adi}**")
                 
                 if ilac_adi == 'Ketamin':
                     # Manuel giriş yapıldıysa onu kullan
@@ -251,7 +279,7 @@ def page_3_show_results():
     sivi_hizi = 10.0
     if 'III' in asa_sinifi or 'IV' in asa_sinifi:
         sivi_hizi = 5.0 
-        st.info(f"Yüksek Risk nedeniyle başlangıç sıvı hızı 5 mL/kg/saat olarak ayarlanmıştır.")
+        st.info(f"Yüksek Risk nedeniyle başlangıç sıvı hızı 5 mL/kg/saat olarak ayarlanmıştır. Hızı elle ayarlayabilirsiniz.")
 
     sivi_hizi_ayar = st.number_input("İstenen Sıvı Hızı (mL/kg/saat):", value=sivi_hizi, min_value=1.0, step=1.0, key="sivi_ayar")
     set_faktor = st.radio("Damla Seti Kalibrasyonu (Damla/mL):", (60, 15), help="60: Mikro Set, 15: Makro Set", key="set_ayar")
@@ -267,7 +295,7 @@ def page_3_show_results():
         st.metric(label=f"Damla Hızı ({set_faktor} damla/mL)", value=f"{round(damla_hizi)} damla/dakika")
 
     st.markdown("---")
-    if st.button("⬅️ 2. Aşamaya Geri Dön"):
+    if st.button("⬅️ Protokolü Tekrar Düzenle (2. Aşamaya Dön)", type="secondary"):
         go_to_page(2)
 
 
@@ -284,10 +312,10 @@ elif st.session_state['page'] == 3:
 
 # --- HAZIRLAYICILAR VE SORUMLULUK REDDİ ---
 st.markdown("---")
-st.subheader("Hazırlayanlar")
+st.subheader("Programı Hazırlayanlar")
 st.markdown("""
 * **Doç. Dr. Sıtkıcan OKUR**
 * **Vet Hek Büşra BAYKAL**
 """)
 
-st.caption("🚨 **UYARI:** Bu araç yalnızca eğitim ve hızlı hesaplama amaçlıdır. Nihai teşhis, doz ayarlamaları ve protokol kararları her zaman bir **Veteriner Hekim** tarafından yapılmalıdır. Lütfen güncel tıbbi referansları kontrol edin.")
+st.caption("🚨 **ÖNEMLİ UYARI:** Bu araç yalnızca eğitim ve hızlı hesaplama amaçlıdır. Verilen dozajlar genel klinik referanslardan alınmıştır ve final kararı her zaman bir **Veteriner Hekim** tarafından verilmelidir.")
